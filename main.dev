@@ -1,62 +1,730 @@
-[Project]
-FileName=Kasur.dev
-Name=Project1
-Type=1
-Ver=2
-ObjFiles=
-Includes=
-Libs=
-PrivateResource=
-ResourceIncludes=
-MakeIncludes=
-Compiler=
-CppCompiler=
-Linker=-lopengl32 _@@_-lfreeglut _@@_-lglu32 _@@_-lgdi32 _@@_-lmingw32_@@_
-IsCpp=1
-Icon=
-ExeOutput=
-ObjectOutput=
-LogOutput=
-LogOutputEnabled=0
-OverrideOutput=0
-OverrideOutputName=Kasur.exe
-HostApplication=
-UseCustomMakefile=0
-CustomMakefile=
-CommandLine=
-Folders=
-IncludeVersionInfo=0
-SupportXPThemes=0
-CompilerSet=0
-CompilerSettings=0000000000000000000000000
-UnitCount=1
+#include <stdio.h> // Header untuk fungsi input/output standar
+#include <stdlib.h> // Header untuk fungsi utilitas umum seperti malloc dan free
+#include <string.h> // Header untuk fungsi manipulasi string
+#include <math.h> // Header untuk fungsi matematika standar
+#include <GL/glut.h> // Header untuk GLUT di sistem selain MacOS
+#include <GL/glu.h> // Header untuk GLU (OpenGL Utility Library)
+#include <GL/gl.h> // Header untuk OpenGL
+#include <stdbool.h>
 
-[VersionInfo]
-Major=1
-Minor=0
-Release=0
-Build=0
-LanguageID=1033
-CharsetID=1252
-CompanyName=
-FileVersion=1.0.0.0
-FileDescription=Developed using the Dev-C++ IDE
-InternalName=
-LegalCopyright=
-LegalTrademarks=
-OriginalFilename=
-ProductName=
-ProductVersion=1.0.0.0
-AutoIncBuildNr=0
-SyncProduct=1
+using namespace std; 
 
-[Unit1]
-FileName=Kasurr.cpp
-CompileCpp=1
-Folder=
-Compile=1
-Link=1
-Priority=1000
-OverrideBuildCmd=0
-BuildCmd=
+static GLfloat spin = 0.0; // Variabel statis untuk menyimpan nilai putaran
+float angle = 0; // Variabel untuk menyimpan nilai sudut
+float lastx, lasty; // Variabel untuk menyimpan posisi terakhir mouse
+GLint stencilBits; // Variabel untuk menyimpan informasi tentang bit stencil buffer
+static int camx = 100; // Koordinat x untuk posisi kamera
+static int camy = 50; // Koordinat y untuk posisi kamera
+static int camz = 50; // Koordinat z untuk posisi kamera
+float rot = 0; // Variabel untuk menyimpan nilai rotasi
+const GLfloat light_ambient[] = { 0.3f, 0.3f, 0.3f, 1.0f };// Mengatur komponen cahaya ambient untuk sumber cahaya pertama
+const GLfloat light_diffuse[] = { 0.7f, 0.7f, 0.7f, 1.0f };// Mengatur komponen cahaya diffuse untuk sumber cahaya pertama
+const GLfloat light_specular[] = { 1.0f, 1.0f, 1.0f, 1.0f };// Mengatur komponen cahaya specular untuk sumber cahaya pertama
+const GLfloat light_position[] = { 1.0f, 1.0f, 1.0f, 1.0f };// Mengatur posisi sumber cahaya pertama
+const GLfloat light_ambient2[] = { 0.3f, 0.3f, 0.3f, 0.0f };// Mengatur komponen cahaya ambient untuk sumber cahaya kedua
+const GLfloat light_diffuse2[] = { 0.3f, 0.3f, 0.3f, 0.0f };// Mengatur komponen cahaya diffuse untuk sumber cahaya kedua
+const GLfloat mat_ambient[] = { 0.8f, 0.8f, 0.8f, 1.0f }; // Mengatur properti ambient dari material
+const GLfloat mat_diffuse[] = { 0.8f, 0.8f, 0.8f, 1.0f }; // Mengatur properti diffuse dari material
+const GLfloat mat_specular[] = { 1.0f, 1.0f, 1.0f, 1.0f }; // Mengatur properti specular dari material
+const GLfloat high_shininess[] = { 100.0f };// Mengatur tingkat kilap dari material (shininess)
+bool bukaPintu = false; // Variabel untuk mengontrol pintu (false: tertutup, true: terbuka)
 
+void initRendering() { // Inisialisasi
+	//glenable : Fungsi mengaktifkan atau menonaktifkan kemampuan OpenGL.
+	glEnable(GL_DEPTH_TEST);//Melakukan perbandingan kedalaman dan memperbarui kedalaman
+	glEnable(GL_COLOR_MATERIAL);//Fungsi menyebabkan warna bahan untuk melacak warna saat ini
+	glEnable(GL_LIGHTING);//
+	glEnable(GL_LIGHT0);//Fungsi mengembalikan sumber cahaya nilai parameter.
+	glEnable(GL_NORMALIZE);//
+	glShadeModel(GL_SMOOTH);//Fungsi memilih shading datar atau halus.
+}
+
+void load_BMP_texture(char *filename) {
+    FILE *file; // Menyimpan pointer ke file BMP
+    short int bpp; // Menyimpan informasi bit per pixel (bits per pixel)
+    short int planes; // Menyimpan jumlah plane (biasanya 1 untuk BMP)
+    long size; // Ukuran data gambar dalam byte
+    unsigned int texture; // Menyimpan ID tekstur yang dihasilkan oleh OpenGL
+
+    long imwidth; // Lebar gambar
+    long imheight; // Tinggi gambar
+    char *imdata; // Pointer ke data gambar
+
+    file = fopen(filename, "rb"); // Membuka file BMP dalam mode baca biner
+    fseek(file, 18, SEEK_CUR); // Melompat ke offset 18 byte dalam file untuk mendapatkan lebar gambar
+
+    fread(&imwidth, 4, 1, file); // Membaca lebar gambar (4 byte)
+    fread(&imheight, 4, 1, file); // Membaca tinggi gambar (4 byte)
+    size = imwidth * imheight * 3; // Menghitung ukuran data gambar (lebar * tinggi * 3 untuk RGB)
+
+    fread(&bpp, 2, 1, file); // Membaca bit per pixel (2 byte)
+    fread(&planes, 2, 1, file); // Membaca jumlah plane (2 byte)
+
+    fseek(file, 24, SEEK_CUR); // Melompat ke offset 24 byte dalam file untuk mencapai data gambar
+    imdata = (char *)malloc(size); // Mengalokasikan memori untuk data gambar
+
+    fread(imdata, size, 1, file); // Membaca data gambar ke dalam memori
+
+    char temp; 
+    for(long i = 0; i < size; i+=3){
+        temp = imdata[i]; // Menukar nilai komponen warna biru (Blue)
+        imdata[i] = imdata[i+2]; // dengan komponen warna merah (Red)
+        imdata[i+2] = temp; // karena format BMP adalah BGR dan OpenGL menggunakan RGB
+    }
+
+    fclose(file); // Menutup file BMP
+
+    glGenTextures(1, &texture); // Menghasilkan ID tekstur baru dengan OpenGL
+    glBindTexture(GL_TEXTURE_2D, texture); // Mengikat tekstur baru yang akan digunakan
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT); // Mengatur parameter wrapping sumbu S untuk tekstur
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT); // Mengatur parameter wrapping sumbu T untuk tekstur
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR); // Mengatur filter tekstur untuk pembesaran
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR); // Mengatur filter tekstur untuk pengecilan
+    glTexEnvf(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_MODULATE); // Mengatur mode lingkungan tekstur untuk modulate
+	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, imwidth, imheight, 0, GL_RGB, GL_UNSIGNED_BYTE, imdata); // Mengupload data gambar ke memori tekstur di OpenGL
+	free(imdata); // Membebaskan memori yang dialokasikan untuk data gambar
+	
+}
+
+
+void pintuUtama(){
+	glPushMatrix(); // Memulai matriks penumpukan untuk menjaga transformasi terisolasi
+		glScaled(3, 5, 0.8); // Skala pintu utama untuk proporsi yang diinginkan
+		glTranslatef(3, 2.5, 76); // Posisi pintu utama dalam ruang
+		glColor3ub (218,165,32); // Warna untuk pintu utama
+		glutSolidCube(5.0); // Membuat kubus solid untuk pintu utama
+		glPushMatrix(); // Memulai matriks penumpukan untuk pintu samping
+			glTranslatef(-5.055, 0, 0); // Posisi pintu samping relatif terhadap pintu utama
+			glColor3ub (218,165,32); // Warna untuk pintu samping
+			glutSolidCube(5.0); // Membuat kubus solid untuk pintu samping
+		glPopMatrix(); // Mengakhiri matriks penumpukan untuk pintu samping
+	glPopMatrix(); // Mengakhiri matriks penumpukan untuk pintu utama
+
+	glPushMatrix(); // Memulai matriks penumpukan untuk elemen tangga pertama
+		glScaled(0.2, 0.7, 1); // Skala elemen tangga pertama untuk proporsi yang diinginkan
+		glTranslatef(0, 20, 60.88); // Posisi elemen tangga pertama dalam ruang
+		glColor3ub(000, 000, 000); // Warna untuk elemen tangga pertama
+		glutSolidCube(5.0); // Membuat kubus solid untuk elemen tangga pertama
+	glPopMatrix(); // Mengakhiri matriks penumpukan untuk elemen tangga pertama
+
+	glPushMatrix(); // Memulai matriks penumpukan untuk elemen tangga kedua
+		glScaled(0.2, 0.7, 1); // Skala elemen tangga kedua untuk proporsi yang diinginkan
+		glTranslatef(15, 20, 60.88); // Posisi elemen tangga kedua dalam ruang
+		glColor3ub(000, 000, 000); // Warna untuk elemen tangga kedua
+		glutSolidCube(5.0); // Membuat kubus solid untuk elemen tangga kedua
+	glPopMatrix(); // Mengakhiri matriks penumpukan untuk elemen tangga kedua
+}
+void tangga(){
+	glRotated(-90, 0.0, 1.0, 0.0);
+	glPushMatrix();
+		glScaled(0.7, 0.5, 2.5);
+		glTranslatef(-30, 5, 12);
+		glColor3ub(138, 138, 138);
+	    glutSolidCube(5.0);
+    glPopMatrix();
+	glPushMatrix();
+	glScaled(0.7, 1.0, 2.5);
+		glTranslatef(-35, 3.8, 12);
+	    glutSolidCube(5.0);
+    glPopMatrix();
+    glPushMatrix();
+    glScaled(0.7, 1.5, 2.5);
+    	glTranslatef(-40, 3.5, 12);
+	    glutSolidCube(5.0);
+    glPopMatrix();
+    glPushMatrix();
+    glScaled(0.7, 2, 2.5);
+    	glTranslatef(-45, 3.2, 12);
+	    glutSolidCube(5.0);
+    glPopMatrix();
+    glPushMatrix();
+    glScaled(0.7, 2.5, 2.5);
+    	glTranslatef(-50, 3, 12);
+	    glutSolidCube(5.0);
+    glPopMatrix();
+    glPushMatrix();
+    glScaled(0.7, 3, 2.5);
+	    glTranslatef(-55, 2.8, 12);
+	    glutSolidCube(5.0);
+    glPopMatrix();
+    glPushMatrix();
+    glScaled(2, 3.5, 2.5);
+	    glTranslatef(-22.5, 2.7, 12);
+	    glutSolidCube(5.0);
+    glPopMatrix();
+    glPushMatrix();
+    glRotated(-90, 0.0, 1.0, 0.0);
+    glScaled(0.7, 4, 2.5);
+	    glTranslatef(31, 2.6, 19.5);
+	    glutSolidCube(5.0);
+    glPopMatrix();
+    glPushMatrix();
+    glRotated(-90, 0.0, 1.0, 0.0);
+    glScaled(0.7, 4.5, 2.5);
+	    glTranslatef(27, 2.4, 19.5);
+	    glutSolidCube(5.0);
+    glPopMatrix();
+    glPushMatrix();
+    glRotated(-90, 0.0, 1.0, 0.0);
+    glScaled(0.7, 5, 2.5);
+	    glTranslatef(23, 2.4, 19.5);
+	    glutSolidCube(5.0);
+    glPopMatrix();
+    glPushMatrix();
+    glRotated(-90, 0.0, 1.0, 0.0);
+    glScaled(0.7, 5.5, 2.5);
+	    glTranslatef(19, 2.4, 19.5);
+	    glutSolidCube(5.0);
+    glPopMatrix();
+    glPushMatrix();
+    glRotated(-90, 0.0, 1.0, 0.0);
+    glScaled(0.7, 6, 2.5);
+	    glTranslatef(15, 2.4, 19.5);
+	    glutSolidCube(5.0);
+    glPopMatrix();
+
+    glPushMatrix();
+    glRotated(-90, 0.0, 1.0, 0.0);
+    glScaled(0.7, 6.5, 2.5);
+	    glTranslatef(11, 2.4, 19.5);
+	    glutSolidCube(5.0);
+    glPopMatrix();
+
+    glPushMatrix();
+    glRotated(-90, 0.0, 1.0, 0.0);
+    glScaled(0.7, 7, 2.5);
+	    glTranslatef(7, 2.4, 19.5);
+	    glutSolidCube(5.0);
+    glPopMatrix();
+
+    glPushMatrix();
+    glRotated(-90, 0.0, 1.0, 0.0);
+    glScaled(0.7, 7.5, 2.5);
+	    glTranslatef(3, 2.4, 19.5);
+	    glutSolidCube(5.0);
+    glPopMatrix();
+}
+
+
+
+
+
+void tempatTidur(){
+     glPushMatrix();//Membuat baris kode diantaranya menjadi tidak berlaku untuk bagian luar.
+       glTranslatef(-15.0,-8.5,-12.0);//digunakan untuk merubah titik tengah sumbu koordinat
+       glScalef(6.0,1.0,9.0);//Skalasi merupakan bentuk transformasi yang dapat mengubah ukuran (besar-kecil) suatu objek.
+       glColor3f(0.0980, 0.0608, 0.0077);//Mengatur warna berdasarkan warna desimal
+       glutSolidCube(1.5);
+    glPopMatrix();//Membuat baris kode diantaranya menjadi tidak berlaku untuk bagian luar.
+    glColorMaterial(GL_FRONT_AND_BACK, GL_AMBIENT_AND_DIFFUSE);
+    glPushMatrix();
+       glTranslatef(-15.0,-8.5,-12.0);
+       glColor3ub (255, 250, 250);
+       glScalef(6.0,2.0,10.0);
+       glutSolidCube(1.3);
+    glPopMatrix();
+    
+    // bantal kiri
+    glPushMatrix();
+    	glRotated(-90, 0.0, 1.0, 0.0);
+    	glScaled(0.4, 0.1, 0.6);
+    	glTranslatef(-43, -70, 28);
+    	glColor3ub (255, 250, 250);
+    	glutSolidCube(5.0);
+    glPopMatrix();
+    // bantal kanan
+    glPushMatrix();
+    	glRotated(-90, 0.0, 1.0, 0.0);//Rotasi merupakan bentuk transformasi yang digunakan untuk memutar posisisuatu benda
+    	glScaled(0.4, 0.1, 0.6);//fungsi kalikan matriks saat ini dengan matriks skala umum
+    	glTranslatef(-43, -70, 22);
+    	glColor3ub (255, 250, 250);
+    	glutSolidCube(5.0);
+    glPopMatrix();//
+}
+
+
+
+void bangunan(void) {
+
+	//lantai 1
+	glPushMatrix();
+	glScaled(1.115, 0.03, 2);
+	glTranslatef(0.0, 0, 0.38);
+	glColorMaterial(GL_FRONT_AND_BACK, GL_AMBIENT_AND_DIFFUSE);
+	glColor3ub(255, 255, 255);
+	glutSolidCube(5.0);
+	glPopMatrix();
+
+	// lantai 2
+	glPushMatrix();
+	glScaled(1.015, 0.03, 1.64);
+	glTranslatef(0.0, 80, 0.57);
+	glColorMaterial(GL_FRONT_AND_BACK, GL_AMBIENT_AND_DIFFUSE);
+	glColor3ub(255, 255, 255);
+	glutSolidCube(5.0);
+	glPopMatrix();
+	glPushMatrix();
+	glScaled(0.5, 0.03, 0.15);
+	glTranslatef(2.56, 80, -23.6);
+	glColorMaterial(GL_FRONT_AND_BACK, GL_AMBIENT_AND_DIFFUSE);
+	glColor3ub(255, 255, 255);
+	glutSolidCube(5.0);
+	glPopMatrix();
+
+	//lantai 3
+	glPushMatrix();
+	glScaled(0.95, 0.03, 1.8);
+	glTranslatef(0.0,160, 0.3);
+	glColorMaterial(GL_FRONT_AND_BACK, GL_AMBIENT_AND_DIFFUSE);
+	glColor3ub(138, 138, 138);
+	glutSolidCube(5.0);
+	glPopMatrix();
+
+	//lapisan lantai 3
+	glPushMatrix();
+	glScaled(0.95, 0.02, 1.8);
+	glTranslatef(0.0,246, 0.3);
+	glColorMaterial(GL_FRONT_AND_BACK, GL_AMBIENT_AND_DIFFUSE);
+	glColor3ub(000, 191, 255);
+	glutSolidCube(5.0);
+	glPopMatrix();
+
+	//Dinding Kiri Bawah
+	glPushMatrix();
+	glScaled(0.035, 0.5, 1.6);
+	glTranslatef(-70.0, 2.45, 0.0);
+	glColorMaterial(GL_FRONT_AND_BACK, GL_AMBIENT_AND_DIFFUSE);
+	glColor3ub(139,0,0);
+	glutSolidCube(5.0);
+	glPopMatrix();
+
+//	//Dinding Kanan Bawah
+//	glPushMatrix();
+//	glScaled(0.035, 0.5, 1.6);
+//	glTranslatef(70.0, 2.45, 0.0);
+//	glColorMaterial(GL_FRONT_AND_BACK, GL_AMBIENT_AND_DIFFUSE);
+//	glColor3f(0.4613, 0.4627, 0.4174);
+//	glutSolidCube(5.0);
+//	glPopMatrix();
+//
+//	//Dinding Kanan Atas
+//	glPushMatrix();
+//	glScaled(0.035, 0.5, 1.8);
+//	glTranslatef(70.0, 7.45, 0.3);
+//	glColorMaterial(GL_FRONT_AND_BACK, GL_AMBIENT_AND_DIFFUSE);
+//	glColor3ub(000, 191, 255);
+//	glutSolidCube(5.0);
+//	glPopMatrix();
+
+	//Dinding Kiri Atas
+	glPushMatrix();
+	glScaled(0.035, 0.5, 1.8);
+	glTranslatef(-70.0, 7.45, 0.3);
+	glColorMaterial(GL_FRONT_AND_BACK, GL_AMBIENT_AND_DIFFUSE);
+	glColor3ub(139,0,0);
+	glutSolidCube(5.0);
+	glPopMatrix();
+
+	//Dinding Belakang bawah
+	glPushMatrix();
+	glScaled(1.015, 0.5, 0.07);
+	glTranslatef(0, 2.45,-58);
+	glColorMaterial(GL_FRONT_AND_BACK, GL_AMBIENT_AND_DIFFUSE);
+	glColor3ub(139,0,0);
+	glutSolidCube(5.0);
+	glPopMatrix();
+
+	//Dinding Belakang atas
+	glPushMatrix();
+	glScaled(1.015, 0.5, 0.07);
+	glTranslatef(0, 7.45,-58);
+	glColorMaterial(GL_FRONT_AND_BACK, GL_AMBIENT_AND_DIFFUSE);
+	glColor3ub(139,0,0);
+	glutSolidCube(5.0);
+	glPopMatrix();
+
+	//Dinding Depan bawah
+	glPushMatrix();
+	glScaled(1.015, 0.5, 0.035);
+	glTranslatef(0, 2.25,116);
+	glColorMaterial(GL_FRONT_AND_BACK, GL_AMBIENT_AND_DIFFUSE);
+	glColor3ub(139,0,0);
+	glutSolidCube(5.0);
+	glPopMatrix();
+
+	//Dinding Depan atas
+		glPushMatrix();
+		glScaled(1.015, 0.5, 0.035);
+		glTranslatef(0, 7.45, 142);
+		glColorMaterial(GL_FRONT_AND_BACK, GL_AMBIENT_AND_DIFFUSE);
+		glColor3ub(139,0,0);
+		glutSolidCube(5.0);
+		glPopMatrix();
+
+
+	// HIASAN DINDING
+	//background
+	glPushMatrix();
+	glScaled(0.35, 0.5, 0.035);
+	glTranslatef(1, 7.2,-112);
+	glColorMaterial(GL_FRONT_AND_BACK, GL_AMBIENT_AND_DIFFUSE);
+	glColor3ub(138, 138, 138);
+	glutSolidCube(5.0);
+	glPopMatrix();
+	//strip 1
+	glPushMatrix();
+	glScaled(0.017,0.33, 0.035);
+	glTranslatef(-16.6, 12,-110);
+	glColorMaterial(GL_FRONT_AND_BACK, GL_AMBIENT_AND_DIFFUSE);
+	glColor3ub (255, 255 ,255);
+	glutSolidCube(5.0);
+	glPopMatrix();
+	//strip 2
+	glPushMatrix();
+	glScaled(0.017,0.33, 0.035);
+	glTranslatef(-6.6, 12,-110);
+	glColorMaterial(GL_FRONT_AND_BACK, GL_AMBIENT_AND_DIFFUSE);
+	glColor3ub (255, 255 ,255);
+	glutSolidCube(5.0);
+	glPopMatrix();
+	//strip 3
+	glPushMatrix();
+	glScaled(0.017,0.33, 0.035);
+	glTranslatef(3.6, 12,-110);
+	glColorMaterial(GL_FRONT_AND_BACK, GL_AMBIENT_AND_DIFFUSE);
+	glColor3ub (255, 255 ,255);
+	glutSolidCube(5.0);
+	glPopMatrix();
+
+	// JENDELA ATAS KANAN
+	// bingkai atas
+	glPushMatrix();
+	glScaled(0.08, 0.017, 0.035);
+	glTranslatef(22.5, 265,-112);
+	glColorMaterial(GL_FRONT_AND_BACK, GL_AMBIENT_AND_DIFFUSE);
+	glColor3ub(255, 255, 240);
+	glutSolidCube(5.0);
+	glPopMatrix();
+	// bingkai bawah
+	glPushMatrix();
+	glScaled(0.08, 0.017, 0.035);
+	glTranslatef(22.5, 183,-112);
+	glColorMaterial(GL_FRONT_AND_BACK, GL_AMBIENT_AND_DIFFUSE);
+	glColor3ub(255, 255, 240);
+	glutSolidCube(5.0);
+	glPopMatrix();
+	// bingkai kiri
+	glPushMatrix();
+	glScaled(0.017,0.28, 0.035);
+	glTranslatef(96.6, 13.5,-112);
+	glColorMaterial(GL_FRONT_AND_BACK, GL_AMBIENT_AND_DIFFUSE);
+	glColor3ub(255, 255, 240);
+	glutSolidCube(5.0);
+	glPopMatrix();
+	// bingkai kanan
+	glPushMatrix();
+	glScaled(0.017,0.28, 0.035);
+	glTranslatef(115.1, 13.5,-112);
+	glColorMaterial(GL_FRONT_AND_BACK, GL_AMBIENT_AND_DIFFUSE);
+	glColor3ub(255, 255, 240);
+	glutSolidCube(5.0);
+	glPopMatrix();
+	
+//	LAMPU ATAS KANAN
+	glPushMatrix();
+	glScaled(0.05, 0.05, 0.05);
+	glTranslatef(34.5, 95.4, 10);
+	glColorMaterial(GL_FRONT_AND_BACK, GL_AMBIENT_AND_DIFFUSE); //untuk memunculkan warna
+	glColor3ub(255, 255, 000);
+	glutSolidSphere(2.0,20,50);
+	glPopMatrix();
+
+//  LAMPU ATAS KIRI
+	glPushMatrix();
+	glScaled(0.05, 0.05, 0.05);
+	glTranslatef(-32.5, 95.4, 10);
+	glColorMaterial(GL_FRONT_AND_BACK, GL_AMBIENT_AND_DIFFUSE);
+	glColor3ub(255, 255, 000);
+	glutSolidSphere(2.0,20,50);
+	glPopMatrix();
+
+//	LAMPU BAWAH KANAN
+	glPushMatrix();
+	glScaled(0.05, 0.05, 0.05);
+	glTranslatef(34.5, 47, 10);
+	glColorMaterial(GL_FRONT_AND_BACK, GL_AMBIENT_AND_DIFFUSE); //untuk memunculkan warna
+	glColor3ub(255, 255, 000);
+	glutSolidSphere(2.0,20,50);
+	glPopMatrix();
+
+//  LAMPU BAWAH KIRI
+	glPushMatrix();
+	glScaled(0.05, 0.05, 0.05);
+	glTranslatef(-32.5, 47, 10);
+	glColorMaterial(GL_FRONT_AND_BACK, GL_AMBIENT_AND_DIFFUSE);
+	glColor3ub(255, 255, 000);
+	glutSolidSphere(2.0,20,50);
+	glPopMatrix();
+
+}
+
+void mejaMakan(void){
+	// lingkaran meja
+	glPushMatrix();
+	glColor3ub(46, 79, 219);
+	glTranslatef(0, 1.5, -1);
+	glScaled(1, 0.1, 1);
+	glutSolidSphere(6, 25, 25);
+	glPopMatrix();
+	// kaki meja kiri depan
+	glPushMatrix();
+	glScaled(0.1, 0.6, 0.1);
+	glTranslatef(33, 0, 30);
+	glColor3ub(46, 79, 219);
+	glutSolidCube(5.0);
+	glPopMatrix();
+	// kaki meja kiri belakang
+	glPushMatrix();
+	glScaled(0.1, 0.6, 0.1);
+	glTranslatef(-33, 0, 30);
+	glColor3ub(46, 79, 219);
+	glutSolidCube(5.0);
+	glPopMatrix();
+	// kaki meja kanan depan
+	glPushMatrix();
+	glScaled(0.1, 0.6, 0.1);
+	glTranslatef(33, 0, -50);
+	glColor3ub(46, 79, 219);
+	glutSolidCube(5.0);
+	glPopMatrix();
+	// kaki meja kanan belakang
+	glPushMatrix();
+	glScaled(0.1, 0.6, 0.1);
+	glTranslatef(-33, 0, -50);
+	glColor3ub(46, 79, 219);
+	glutSolidCube(5.0);
+	glPopMatrix();
+}
+
+void kursiMakan(void)
+{
+	 glPushMatrix();
+		glColor3ub(46, 79, 219);
+		glTranslatef(-5, -9.1, -0.05);
+		glScaled(0.2, 0.05, 0.2);
+		glutSolidSphere(6, 25, 25);
+	 glPopMatrix();
+
+     glPushMatrix();
+        glTranslatef(-5.0,-7.0,0);
+        glScalef(3.0,0.1,3.0);
+        glutSolidCube(1.0);
+     glPopMatrix();
+
+     glPushMatrix();
+        glTranslatef(-6.5,-5.5,0);
+        glRotatef(90,0.0,0.0,1.0);
+        glScalef(3.0,0.1,3.0);
+        glutSolidCube(1.0);
+     glPopMatrix();
+
+     glPushMatrix();
+        glTranslatef(-5.0,-8.0,0);
+        glScalef(0.5,2.0,0.5);
+        glutSolidCube(1.0);
+     glPopMatrix();
+}
+
+
+
+
+unsigned int LoadTextureFromBmpFile(char *filename);
+
+void display(void) {
+	glClearStencil(0); //clear the stencil buffer
+	glClearDepth(1.0f);//Fungsi menentukan nilai yang jelas untuk kedalaman
+	glClearColor(0.0, 0.6, 0.8, 1);//mendefinisikan warna dari windows
+	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT); //untuk membersihkan memori buffer warna atau memori buffer kedalaman dari keadaan sebelumnya.
+	glLoadIdentity();//untuk memanggil matriks terakhir yang disimpan.
+	gluLookAt(camx, camy, camz, 0.0, 0.0, 5.0, 0.0, 1.0, 0.0);//Fungsi mendefinisikan transformasi pandangan.
+
+		glPushMatrix();
+			glTranslatef(0,0,0);
+			glScalef(15, 15, 15);
+			bangunan(); //Bangunan
+		glPopMatrix();
+		
+		glPushMatrix();
+			glTranslatef(0,0,0);
+			pintuUtama();//2 Pintu utama
+		glPopMatrix();
+
+		glPushMatrix();
+			glTranslatef(0,0,-5);
+			tangga();// Tangga lantai 1 dan 2
+		glPopMatrix();
+
+	
+
+		glPushMatrix();
+			glScalef(2.5, 2.5, 2.5);
+			glTranslatef(3, 2, -10);
+			mejaMakan();// Meja makan
+		glPopMatrix();
+
+		glPushMatrix();
+			glScalef(2.5, 2.5, 2.5);
+		    glRotatef(90, 0, 1, 0);
+		    glTranslatef(10, 9.5, 3);
+		    kursiMakan();// Kursi meja makan
+
+			glPushMatrix();
+			glRotatef(-180, 0, 1, 0);
+			glTranslatef(-2, 0, 0);
+			kursiMakan();
+			glPopMatrix();
+
+			glPushMatrix();
+			glRotatef(-90, 0, 1, 0);
+			glTranslatef(-2, 0, -1);
+			kursiMakan();
+			glPopMatrix();
+
+			glPushMatrix();
+			glRotatef(90, 0, 1, 0);
+			glTranslatef(-1, 0, 0.6);
+			kursiMakan();
+			glPopMatrix();
+		glPopMatrix();
+
+		glPushMatrix();
+			glScalef(2.5, 2.5, 2.5);
+			glRotatef(90, 0, 1, 0);
+			glTranslatef(-1.6, 24.7, 5);
+			tempatTidur();// Tempat tidur
+		glPopMatrix();
+
+	
+
+	glPushMatrix();
+	glPopMatrix();
+	glutSwapBuffers();
+	glFlush();
+	rot++;
+	angle++;
+
+}
+
+void init(void) {
+    glEnable(GL_DEPTH_TEST);       // Mengaktifkan pengujian kedalaman
+    glEnable(GL_COLOR_MATERIAL);   // Mengaktifkan pelacakan warna
+    glEnable(GL_LIGHTING);         // Mengaktifkan pencahayaan
+    glEnable(GL_LIGHT0);           // Mengaktifkan cahaya #0
+	glDepthFunc(GL_LESS);
+	glEnable(GL_NORMALIZE);
+	glEnable(GL_COLOR_MATERIAL);
+	glDepthFunc(GL_LEQUAL);
+	glShadeModel(GL_SMOOTH);
+	glHint(GL_PERSPECTIVE_CORRECTION_HINT, GL_NICEST);//Fungsi set up perspektif matriks proyeksi.
+	glEnable(GL_CULL_FACE);
+
+}
+
+static void navigasi(int key, int x, int y) {
+	switch (key) {
+	case GLUT_KEY_HOME:
+		camy++;
+		break;
+	case GLUT_KEY_END:
+		camy--;
+		break;
+	case GLUT_KEY_UP:
+		camz--;
+		break;
+	case GLUT_KEY_DOWN:
+		camz++;
+		break;
+	case GLUT_KEY_RIGHT:
+		camx++;
+		break;
+	case GLUT_KEY_LEFT:
+		camx--;
+		break;
+
+	case GLUT_KEY_F1: {
+		glLightfv(GL_LIGHT0, GL_AMBIENT, light_ambient);//Yaitu menyebabkan warna sekitar/ pantulan yang telah banyak.
+		glLightfv(GL_LIGHT0, GL_DIFFUSE, light_diffuse);//Yaitu cahaya yang diterima oleh material akan menyebar kesegala arah.
+		glMaterialfv(GL_FRONT, GL_AMBIENT, mat_ambient);
+		glMaterialfv(GL_FRONT, GL_DIFFUSE, mat_diffuse);
+	}
+		;
+		break;
+	case GLUT_KEY_F2: {
+		glLightfv(GL_LIGHT0, GL_AMBIENT, light_ambient2);
+		glLightfv(GL_LIGHT0, GL_DIFFUSE, light_diffuse2);
+		glMaterialfv(GL_FRONT, GL_AMBIENT, mat_ambient);
+		glMaterialfv(GL_FRONT, GL_DIFFUSE, mat_diffuse);
+	}
+		;
+		break;
+	default:
+		break;
+	}
+}
+
+void keyboard(unsigned char key, int x, int y) {
+	if (key == 'd') {
+
+		spin = spin - 1;
+		if (spin > 360.0)
+			spin = spin - 360.0;
+	}
+	if (key == 'a') {
+		spin = spin + 1;
+		if (spin > 360.0)
+			spin = spin - 360.0;
+	}
+	if (key == 'a') {
+		camz++;
+	}
+	if (key == 'd') {
+		camz--;
+	}
+	if (key == 'w') {
+		camy--;
+	}
+	if (key == 's') {
+		camy++;
+	}
+}
+
+void reshape(int w, int h) {//Fungsi set up perspektif matriks proyeksi.
+	glViewport(0, 0, (GLsizei) w, (GLsizei) h);
+	glMatrixMode(GL_PROJECTION);
+	glLoadIdentity();
+	gluPerspective(60, (GLfloat) w / (GLfloat) h, 0.1, 1000.0);
+	glMatrixMode(GL_MODELVIEW);
+}
+
+int main(int argc, char **argv) {
+	glutInit(&argc, argv);
+	glutInitDisplayMode(GLUT_DOUBLE | GLUT_RGBA | GLUT_STENCIL | GLUT_DEPTH); //add a stencil buffer to the window
+	glutInitWindowSize(800, 600);
+	glutInitWindowPosition(100, 100);
+	glutCreateWindow("Rumah Sederhana");
+	init();
+
+	glutDisplayFunc(display);
+	glutIdleFunc(display);
+	glutReshapeFunc(reshape);
+	glutSpecialFunc(navigasi);
+	glutKeyboardFunc(keyboard);
+	glLightfv(GL_LIGHT0, GL_SPECULAR, light_specular);//mengatur cahaya kilau pada objek
+	glLightfv(GL_LIGHT0, GL_POSITION, light_position);// mengkonfigurasi sumber cahaya
+	glMaterialfv(GL_FRONT, GL_SPECULAR, mat_specular);///mengatur cahaya kilau pada objek
+	glMaterialfv(GL_FRONT, GL_SHININESS, high_shininess);// mengatur definisi kesilauan
+	glColorMaterial(GL_FRONT, GL_DIFFUSE);
+
+	glutMainLoop();
+	return 0;
+}
