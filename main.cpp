@@ -2,392 +2,55 @@
 #include <stdlib.h> // Header untuk fungsi utilitas umum seperti malloc dan free
 #include <string.h> // Header untuk fungsi manipulasi string
 #include <math.h> // Header untuk fungsi matematika standar
-#include <GL/glut.h> // Header untuk GLUT di sistem selain MacOS
+#include <GL/glut.h> // Header untuk GLUT di sistem 
 #include <GL/glu.h> // Header untuk GLU (OpenGL Utility Library)
 #include <GL/gl.h> // Header untuk OpenGL
-#include <stdbool.h>
 #include <GL/freeglut.h>
 
 using namespace std; 
 
-static GLfloat spin = 0.0; // Variabel statis untuk menyimpan nilai putaran
-float angle = 0; // Variabel untuk menyimpan nilai sudut
-float lastx, lasty; // Variabel untuk menyimpan posisi terakhir mouse
-GLint stencilBits; // Variabel untuk menyimpan informasi tentang bit stencil buffer
-
-// Koordinat Posisi kamera
+//Variabel global untuk mengatur Rotasi dan Posisi Kamera
+static GLfloat spin = 0.0; 
+float angle = 0; 
+float lastx, lasty; 
+GLint stencilBits; 
 static int camx = 100; 
 static int camy = 50; 
 static int camz = 50; 
-float rot = 0; // Variabel untuk menyimpan nilai rotasi
-const GLfloat light_ambient[] = { 0.3f, 0.3f, 0.3f, 1.0f };// Mengatur komponen cahaya ambient untuk sumber cahaya pertama
-const GLfloat light_diffuse[] = { 0.7f, 0.7f, 0.7f, 1.0f };// Mengatur komponen cahaya diffuse untuk sumber cahaya pertama
-const GLfloat light_specular[] = { 1.0f, 1.0f, 1.0f, 1.0f };// Mengatur komponen cahaya specular untuk sumber cahaya pertama
-const GLfloat light_position[] = { 1.0f, 1.0f, 1.0f, 1.0f };// Mengatur posisi sumber cahaya pertama
-const GLfloat light_ambient2[] = { 0.3f, 0.3f, 0.3f, 0.0f };// Mengatur komponen cahaya ambient untuk sumber cahaya kedua
-const GLfloat light_diffuse2[] = { 0.3f, 0.3f, 0.3f, 0.0f };// Mengatur komponen cahaya diffuse untuk sumber cahaya kedua
-const GLfloat mat_ambient[] = { 0.8f, 0.8f, 0.8f, 1.0f }; // Mengatur properti ambient dari material
-const GLfloat mat_diffuse[] = { 0.8f, 0.8f, 0.8f, 1.0f }; // Mengatur properti diffuse dari material
-const GLfloat mat_specular[] = { 1.0f, 1.0f, 1.0f, 1.0f }; // Mengatur properti specular dari material
-const GLfloat high_shininess[] = { 100.0f };// Mengatur tingkat kilap dari material (shininess)
-bool bukaPintu = false; // Variabel untuk mengontrol pintu (false: tertutup, true: terbuka)
+float rot = 0; 
 
-void initRendering() { // Inisialisasi
-	//glenable : Fungsi mengaktifkan atau menonaktifkan kemampuan OpenGL.
-	glEnable(GL_DEPTH_TEST);//Melakukan perbandingan kedalaman dan memperbarui kedalaman
-	glEnable(GL_COLOR_MATERIAL);//Fungsi menyebabkan warna bahan untuk melacak warna saat ini
-	glEnable(GL_LIGHTING);//
-	glEnable(GL_LIGHT0);//Fungsi mengembalikan sumber cahaya nilai parameter.
-	glEnable(GL_NORMALIZE);//
-	glShadeModel(GL_SMOOTH);//Fungsi memilih shading datar atau halus.
-}
+//Mengatur Komponen Cahaya dan Material
+const GLfloat light_ambient[] = { 0.3f, 0.3f, 0.3f, 1.0f };
+const GLfloat light_diffuse[] = { 0.7f, 0.7f, 0.7f, 1.0f };
+const GLfloat light_specular[] = { 1.0f, 1.0f, 1.0f, 1.0f };
+const GLfloat light_position[] = { 1.0f, 1.0f, 1.0f, 1.0f };
+const GLfloat light_ambient2[] = { 0.3f, 0.3f, 0.3f, 0.0f };
+const GLfloat light_diffuse2[] = { 0.3f, 0.3f, 0.3f, 0.0f };
+const GLfloat mat_ambient[] = { 0.8f, 0.8f, 0.8f, 1.0f }; 
+const GLfloat mat_diffuse[] = { 0.8f, 0.8f, 0.8f, 1.0f }; 
+const GLfloat mat_specular[] = { 1.0f, 1.0f, 1.0f, 1.0f }; 
+const GLfloat high_shininess[] = { 100.0f };
 
-void load_BMP_texture(char *filename) {
-    FILE *file; // Menyimpan pointer ke file BMP
-    short int bpp; // Menyimpan informasi bit per pixel (bits per pixel)
-    short int planes; // Menyimpan jumlah plane (biasanya 1 untuk BMP)
-    long size; // Ukuran data gambar dalam byte
-    unsigned int texture; // Menyimpan ID tekstur yang dihasilkan oleh OpenGL
 
-    long imwidth; // Lebar gambar
-    long imheight; // Tinggi gambar
-    char *imdata; // Pointer ke data gambar
 
-    file = fopen(filename, "rb"); // Membuka file BMP dalam mode baca biner
-    fseek(file, 18, SEEK_CUR); // Melompat ke offset 18 byte dalam file untuk mendapatkan lebar gambar
+void init(void) {
+ 	glClearColor(0.0, 0.0, 0.0, 1.0);
+	glEnable(GL_DEPTH_TEST);
+	glEnable(GL_LIGHTING);
+	glEnable(GL_LIGHT0);
+	glDepthFunc(GL_LESS);
+	glEnable(GL_NORMALIZE);
+	glEnable(GL_COLOR_MATERIAL);
+	glDepthFunc(GL_LEQUAL);
+	glShadeModel(GL_SMOOTH);
+	glHint(GL_PERSPECTIVE_CORRECTION_HINT, GL_NICEST);//Fungsi set up perspektif matriks proyeksi.
+	glEnable(GL_CULL_FACE);
 
-    fread(&imwidth, 4, 1, file); // Membaca lebar gambar (4 byte)
-    fread(&imheight, 4, 1, file); // Membaca tinggi gambar (4 byte)
-    size = imwidth * imheight * 3; // Menghitung ukuran data gambar (lebar * tinggi * 3 untuk RGB)
-
-    fread(&bpp, 2, 1, file); // Membaca bit per pixel (2 byte)
-    fread(&planes, 2, 1, file); // Membaca jumlah plane (2 byte)
-
-    fseek(file, 24, SEEK_CUR); // Melompat ke offset 24 byte dalam file untuk mencapai data gambar
-    imdata = (char *)malloc(size); // Mengalokasikan memori untuk data gambar
-
-    fread(imdata, size, 1, file); // Membaca data gambar ke dalam memori
-
-    char temp; 
-    for(long i = 0; i < size; i+=3){
-        temp = imdata[i]; // Menukar nilai komponen warna biru (Blue)
-        imdata[i] = imdata[i+2]; // dengan komponen warna merah (Red)
-        imdata[i+2] = temp; // karena format BMP adalah BGR dan OpenGL menggunakan RGB
-    }
-
-    fclose(file); // Menutup file BMP
-
-    glGenTextures(1, &texture); // Menghasilkan ID tekstur baru dengan OpenGL
-    glBindTexture(GL_TEXTURE_2D, texture); // Mengikat tekstur baru yang akan digunakan
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT); // Mengatur parameter wrapping sumbu S untuk tekstur
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT); // Mengatur parameter wrapping sumbu T untuk tekstur
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR); // Mengatur filter tekstur untuk pembesaran
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR); // Mengatur filter tekstur untuk pengecilan
-    glTexEnvf(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_MODULATE); // Mengatur mode lingkungan tekstur untuk modulate
-	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, imwidth, imheight, 0, GL_RGB, GL_UNSIGNED_BYTE, imdata); // Mengupload data gambar ke memori tekstur di OpenGL
-	free(imdata); // Membebaskan memori yang dialokasikan untuk data gambar
-	
-}
-
-void tempatTidur(){
-     glPushMatrix();//Membuat baris kode diantaranya menjadi tidak berlaku untuk bagian luar.
-       glTranslatef(-15.0,-8.5,-12.0);//digunakan untuk merubah titik tengah sumbu koordinat
-       glScalef(6.0,1.0,9.0);//Skalasi merupakan bentuk transformasi yang dapat mengubah ukuran (besar-kecil) suatu objek.
-       glColor3f(0.0980, 0.0608, 0.0077);//Mengatur warna berdasarkan warna desimal
-       glutSolidCube(1.5);
-    glPopMatrix();//Membuat baris kode diantaranya menjadi tidak berlaku untuk bagian luar.
-    glColorMaterial(GL_FRONT_AND_BACK, GL_AMBIENT_AND_DIFFUSE);
-    glPushMatrix();
-       glTranslatef(-15.0,-8.5,-12.0);
-       glColor3ub (255, 250, 250);
-       glScalef(6.0,2.0,10.0);
-       glutSolidCube(1.3);
-    glPopMatrix();
-    // bantal kiri
-    glPushMatrix();
-    	glRotated(-90, 0.0, 1.0, 0.0);
-    	glScaled(0.4, 0.1, 0.6);
-    	glTranslatef(-43, -70, 28);
-    	glColor3ub (255, 250, 250);
-    	glutSolidCube(5.0);
-    glPopMatrix();
-    // bantal kanan
-    glPushMatrix();
-    	glRotated(-90, 0.0, 1.0, 0.0);//Rotasi merupakan bentuk transformasi yang digunakan untuk memutar posisisuatu benda
-    	glScaled(0.4, 0.1, 0.6);//fungsi kalikan matriks saat ini dengan matriks skala umum
-    	glTranslatef(-43, -70, 22);
-    	glColor3ub (255, 250, 250);
-    	glutSolidCube(5.0);
-    glPopMatrix();//
-}
-
-void sofaPanjang(){
-	// bawah sofa
-	glRotated(-90, 0.0, 1.0, 0.0);
-	glPushMatrix();
-		glScaled(1.5, 0.5, 5);
-		glTranslatef(1, -17, 0);
-		glColor3f(0.0980, 0.0608, 0.0077);
-	    glutSolidCube(5.0);
-    glPopMatrix();
-    // senderan sofa
-	glRotated(-90, 0.0, 1.0, 0.0);
-	glPushMatrix();
-		glScaled(5, 1.5, 0.5);
-		glTranslatef(0, -4, -11);
-	    glColor3ub(255, 250, 250);
-	    glutSolidCube(5.0);
-    glPopMatrix();
-    // sisi kanan sofa
-	glRotated(-90, 0.0, 1.0, 0.0);
-	glPushMatrix();
-		glScaled(2, 1, 0.5);
-		glTranslatef(-0.8, -7, 25);
-		glColor3f(0.0980, 0.0608, 0.0077);
-	    glutSolidCube(5.0);
-    glPopMatrix();
-    //sisi kiri sofa
-    glPushMatrix();
-		glScaled(2, 1, 0.5);
-		glTranslatef(-0.8, -7, -25);
-		glColor3f(0.0980, 0.0608, 0.0077);
-	    glutSolidCube(5.0);
-    glPopMatrix();
-    // bantal sofa
-	glPushMatrix();
-		glScaled(1, 0.1, 4);
-		glTranslatef(-1, -70, 0);
-	    glColor3ub(255, 250, 250);
-	    glutSolidCube(5.0);
-    glPopMatrix();
-}
-
-void pintuUtama(){
-	glPushMatrix();
-		glScaled(3, 5, 0.8);
-		glTranslatef(3, 2.5, 76);
-		glColor3ub (255, 250, 250);
-		glutSolidCube(5.0);
-		glPushMatrix();
-			glTranslatef(-5.055, 0, 0);
-			glColor3ub (255, 250, 250);
-			glutSolidCube(5.0);
-		glPopMatrix();
-	glPopMatrix();
-
-	glPushMatrix();
-		glScaled(0.2, 0.7, 1);
-		glTranslatef(0, 20, 60.88);
-		glColor3ub(000, 000, 000);
-		glutSolidCube(5.0);
-	glPopMatrix();
-
-	glPushMatrix();
-		glScaled(0.2, 0.7, 1);
-		glTranslatef(15, 20, 60.88);
-		glColor3ub(000, 000, 000);
-		glutSolidCube(5.0);
-	glPopMatrix();
-}
-
-void tangga(){
-	glRotated(-90, 0.0, 1.0, 0.0);
-	glPushMatrix();
-		glScaled(0.7, 0.5, 2.5);
-		glTranslatef(-30, 5, 12);
-		glColor3ub(138, 138, 138);
-	    glutSolidCube(5.0);
-    glPopMatrix();
-	glPushMatrix();
-	glScaled(0.7, 1.0, 2.5);
-		glTranslatef(-35, 3.8, 12);
-	    glutSolidCube(5.0);
-    glPopMatrix();
-    glPushMatrix();
-    glScaled(0.7, 1.5, 2.5);
-    	glTranslatef(-40, 3.5, 12);
-	    glutSolidCube(5.0);
-    glPopMatrix();
-    glPushMatrix();
-    glScaled(0.7, 2, 2.5);
-    	glTranslatef(-45, 3.2, 12);
-	    glutSolidCube(5.0);
-    glPopMatrix();
-    glPushMatrix();
-    glScaled(0.7, 2.5, 2.5);
-    	glTranslatef(-50, 3, 12);
-	    glutSolidCube(5.0);
-    glPopMatrix();
-    glPushMatrix();
-    glScaled(0.7, 3, 2.5);
-	    glTranslatef(-55, 2.8, 12);
-	    glutSolidCube(5.0);
-    glPopMatrix();
-    glPushMatrix();
-    glScaled(2, 3.5, 2.5);
-	    glTranslatef(-22.5, 2.7, 12);
-	    glutSolidCube(5.0);
-    glPopMatrix();
-    glPushMatrix();
-    glRotated(-90, 0.0, 1.0, 0.0);
-    glScaled(0.7, 4, 2.5);
-	    glTranslatef(31, 2.6, 19.5);
-	    glutSolidCube(5.0);
-    glPopMatrix();
-    glPushMatrix();
-    glRotated(-90, 0.0, 1.0, 0.0);
-    glScaled(0.7, 4.5, 2.5);
-	    glTranslatef(27, 2.4, 19.5);
-	    glutSolidCube(5.0);
-    glPopMatrix();
-    glPushMatrix();
-    glRotated(-90, 0.0, 1.0, 0.0);
-    glScaled(0.7, 5, 2.5);
-	    glTranslatef(23, 2.4, 19.5);
-	    glutSolidCube(5.0);
-    glPopMatrix();
-    glPushMatrix();
-    glRotated(-90, 0.0, 1.0, 0.0);
-    glScaled(0.7, 5.5, 2.5);
-	    glTranslatef(19, 2.4, 19.5);
-	    glutSolidCube(5.0);
-    glPopMatrix();
-    glPushMatrix();
-    glRotated(-90, 0.0, 1.0, 0.0);
-    glScaled(0.7, 6, 2.5);
-	    glTranslatef(15, 2.4, 19.5);
-	    glutSolidCube(5.0);
-    glPopMatrix();
-
-    glPushMatrix();
-    glRotated(-90, 0.0, 1.0, 0.0);
-    glScaled(0.7, 6.5, 2.5);
-	    glTranslatef(11, 2.4, 19.5);
-	    glutSolidCube(5.0);
-    glPopMatrix();
-
-    glPushMatrix();
-    glRotated(-90, 0.0, 1.0, 0.0);
-    glScaled(0.7, 7, 2.5);
-	    glTranslatef(7, 2.4, 19.5);
-	    glutSolidCube(5.0);
-    glPopMatrix();
-
-    glPushMatrix();
-    glRotated(-90, 0.0, 1.0, 0.0);
-    glScaled(0.7, 7.5, 2.5);
-	    glTranslatef(3, 2.4, 19.5);
-	    glutSolidCube(5.0);
-    glPopMatrix();
-}
-
-void lampuMeja() {
-	glPushMatrix();
-		glColorMaterial(GL_FRONT_AND_BACK, GL_AMBIENT_AND_DIFFUSE);
-		glColor3d(0.0, 1.0, 0.0);
-		glRotated(-90.0, 1.0, 0.0, 0.0);
-		glColor3ub(255, 255, 000);
-		glutSolidCone(15.0, 20.0, 15, -10);
-	glPopMatrix();
-
-    glPushMatrix();
-		glRotatef(90, 1, 0, 0);
-		glTranslatef(0.0, 0, -2);
-		glScaled(1.4, 2, 30);
-		glColor3ub(255, 250, 250);
-		glutSolidTorus(0.4, 0.4, 60, 80);
-    glPopMatrix();
-
-	 glPushMatrix();
-		glColor3ub(46, 79, 219);
-		glTranslatef(0, -9.1, -0.05);
-		glScaled(2, 0.1, 2);
-		glColor3ub(255, 250, 250);
-		glutSolidSphere(6, 25, 25);
-	 glPopMatrix();
-
-}
-
-void meja(void){
-    glPushMatrix();
-       glTranslatef(0.0,-5.0,0.0);
-       glColor3f(0.0980, 0.0608, 0.0077);
-       glScalef(6.0,0.1,8.0);
-       glutSolidCube(1.0);
-    glPopMatrix();
-
-    glPushMatrix();
-       glTranslatef(-2.5,-7.0,3.5);
-       glScalef(1.0,4.0,1.0);
-       glutSolidCube(1.0);
-    glPopMatrix();
-
-    glPushMatrix();
-       glTranslatef(2.5,-7.0,3.5);
-       glScalef(1.0,4.0,1.0);
-       glutSolidCube(1.0);
-    glPopMatrix();
-
-    glPushMatrix();
-       glTranslatef(-2.5,-7.0,-3.5);
-       glScalef(1.0,4.0,1.0);
-       glutSolidCube(1.0);
-    glPopMatrix();
-
-    glPushMatrix();
-       glTranslatef(2.5,-7.0,-3.5);
-       glScalef(1.0,4.0,1.0);
-       glutSolidCube(1.0);
-    glPopMatrix();
-}
-
-void kursi(void) {
-
-    // Batang Tiang Kanan
-    glPushMatrix();
-    glScaled(0.06, 0.2, 0.06);
-    glTranslatef(43, 0, 380.5);
-    glColorMaterial(GL_FRONT_AND_BACK, GL_AMBIENT_AND_DIFFUSE);
-    glColor3f(1, 1, 1);
-    glutSolidCube(5.0);
-    glPopMatrix();
-    // Batang Tiang Kiri
-    glPushMatrix();
-    glScaled(0.06, 0.2, 0.06);
-    glTranslatef(3, 0, 380.5);
-    glColorMaterial(GL_FRONT_AND_BACK, GL_AMBIENT_AND_DIFFUSE);
-    glColor3f(1, 1, 1);
-    glutSolidCube(5.0);
-    glPopMatrix();
-    // Batang depan knan
-    glPushMatrix();
-    glScaled(0.06, 0.2, 0.06);
-    glTranslatef(43, 0, 390.5);
-    glColorMaterial(GL_FRONT_AND_BACK, GL_AMBIENT_AND_DIFFUSE);
-    glColor3f(1, 1, 1);
-    glutSolidCube(5.0);
-    glPopMatrix();
-    // Batang Depan Kiri
-    glPushMatrix();
-    glScaled(0.06, 0.2, 0.06);
-    glTranslatef(3, 0, 390.5);
-    glColorMaterial(GL_FRONT_AND_BACK, GL_AMBIENT_AND_DIFFUSE);
-    glColor3f(1, 1, 1);
-    glutSolidCube(5.0);
-    glPopMatrix();
-    // atas kursi
-    glPushMatrix();
-    glScaled(0.6, 0.05, 0.3);
-    glTranslatef(2.4, 8, 77);
-    glColorMaterial(GL_FRONT_AND_BACK, GL_AMBIENT_AND_DIFFUSE);
-    glColor3f(1.0000, 0.5252, 0.0157);
-    glutSolidCube(5.0);
-    glPopMatrix();
 }
 
 void bangunan(void) {
 
-//lantai 1
+	//lantai 1
 	glPushMatrix();
 	glScaled(1.115, 0.03, 2);
 	glTranslatef(0.0, 0, 0.38);
@@ -396,7 +59,7 @@ void bangunan(void) {
 	glutSolidCube(5.0);
 	glPopMatrix();
 
-// lantai 2
+	// lantai 2
 	glPushMatrix();
 	glScaled(1.015, 0.03, 1.64);
 	glTranslatef(0.0, 80, 0.57);
@@ -412,7 +75,7 @@ void bangunan(void) {
 	glutSolidCube(5.0);
 	glPopMatrix();
 
-//lantai 3
+	//lantai 3
 	glPushMatrix();
 	glScaled(0.95, 0.03, 1.8);
 	glTranslatef(0.0,160, 0.3);
@@ -421,7 +84,7 @@ void bangunan(void) {
 	glutSolidCube(5.0);
 	glPopMatrix();
 
-//lapisan lantai 3
+	//lapisan lantai 3
 	glPushMatrix();
 	glScaled(0.95, 0.02, 1.8);
 	glTranslatef(0.0,246, 0.3);
@@ -430,7 +93,7 @@ void bangunan(void) {
 	glutSolidCube(5.0);
 	glPopMatrix();
 
-//Dinding Kiri Bawah
+	//Dinding Kiri Bawah
 	glPushMatrix();
 	glScaled(0.035, 0.5, 1.6);
 	glTranslatef(-70.0, 2.45, 0.0);
@@ -457,7 +120,7 @@ void bangunan(void) {
 //	glutSolidCube(5.0);
 //	glPopMatrix();
 
-//Dinding Kiri Atas
+	//Dinding Kiri Atas
 	glPushMatrix();
 	glScaled(0.035, 0.5, 1.8);
 	glTranslatef(-70.0, 7.45, 0.3);
@@ -466,7 +129,7 @@ void bangunan(void) {
 	glutSolidCube(5.0);
 	glPopMatrix();
 
-//Dinding Belakang bawah
+	//Dinding Belakang bawah
 	glPushMatrix();
 	glScaled(1.015, 0.5, 0.07);
 	glTranslatef(0, 2.45,-58);
@@ -475,7 +138,7 @@ void bangunan(void) {
 	glutSolidCube(5.0);
 	glPopMatrix();
 
-//Dinding Belakang atas
+	//Dinding Belakang atas
 	glPushMatrix();
 	glScaled(1.015, 0.5, 0.07);
 	glTranslatef(0, 7.45,-58);
@@ -484,7 +147,7 @@ void bangunan(void) {
 	glutSolidCube(5.0);
 	glPopMatrix();
 
-//Dinding Depan bawah
+	//Dinding Depan bawah
 	glPushMatrix();
 	glScaled(1.015, 0.5, 0.035);
 	glTranslatef(0, 2.25,116);
@@ -494,15 +157,15 @@ void bangunan(void) {
 	glPopMatrix();
 
 	//Dinding Depan atas
-		glPushMatrix();
-		glScaled(1.015, 0.5, 0.035);
-		glTranslatef(0, 7.45, 142);
-		glColorMaterial(GL_FRONT_AND_BACK, GL_AMBIENT_AND_DIFFUSE);
-		glColor3ub(139,0,0);
-		glutSolidCube(5.0);
-		glPopMatrix();
+	glPushMatrix();
+	glScaled(1.015, 0.5, 0.035);
+	glTranslatef(0, 7.45, 142);
+	glColorMaterial(GL_FRONT_AND_BACK, GL_AMBIENT_AND_DIFFUSE);
+	glColor3ub(139,0,0);
+	glutSolidCube(5.0);
+	glPopMatrix();
 
-// HIASAN DINDING
+	// HIASAN DINDING
 	//background
 	glPushMatrix();
 	glScaled(0.35, 0.5, 0.035);
@@ -536,7 +199,7 @@ void bangunan(void) {
 	glutSolidCube(5.0);
 	glPopMatrix();
 
-// JENDELA ATAS KANAN
+	// JENDELA ATAS KANAN
 	// bingkai atas
 	glPushMatrix();
 	glScaled(0.08, 0.017, 0.035);
@@ -569,139 +232,8 @@ void bangunan(void) {
 	glColor3ub(255, 255, 240);
 	glutSolidCube(5.0);
 	glPopMatrix();
-
-	// MEJA KIRI
-		// tatakan meja
-		glPushMatrix();
-		glRotated(90, 1.0, 0.0, 0.0);
-		glScaled(0.98, 0.48, 0.08);
-		glTranslatef(-1.5, 9.0, -36);
-		glColorMaterial(GL_FRONT_AND_BACK, GL_AMBIENT_AND_DIFFUSE);
-		glColor3ub(255, 222, 173);
-		glutSolidCube(1.0);
-		glPopMatrix();
-		// kaki meja kiri belakang
-		glPushMatrix();
-		glScaled(0.06, 0.5,0.06);
-		glTranslatef(-30, 5.2, 75.5);
-		glColorMaterial(GL_FRONT_AND_BACK, GL_AMBIENT_AND_DIFFUSE);
-		glColor3ub(255, 222, 173);
-		glutSolidCube(1.0);
-		glPopMatrix();
-		// kaki meja kiri depan
-		glPushMatrix();
-		glScaled(0.06, 0.5,0.06);
-		glTranslatef(-20, 5.2, 75.5);
-		glColorMaterial(GL_FRONT_AND_BACK, GL_AMBIENT_AND_DIFFUSE);
-		glColor3ub(255, 222, 173);
-		glutSolidCube(1.0);
-		glPopMatrix();
-		// kaki meja kanan depan
-		glPushMatrix();
-		glScaled(0.06, 0.5,0.06);
-		glTranslatef(-20, 5.2, 68.5);
-		glColorMaterial(GL_FRONT_AND_BACK, GL_AMBIENT_AND_DIFFUSE);
-		glColor3ub(255, 222, 173);
-		glutSolidCube(1.0);
-		glPopMatrix();
-		// kaki meja kanan belakang
-		glPushMatrix();
-		glScaled(0.06, 0.5,0.06);
-		glTranslatef(-30, 5.2, 68.5);
-		glColorMaterial(GL_FRONT_AND_BACK, GL_AMBIENT_AND_DIFFUSE);
-		glColor3ub(255, 222, 173);
-		glutSolidCube(1.0);
-		glPopMatrix();
-
-		// MEJA KIRI
-			// tatakan meja
-			glPushMatrix();
-			glRotated(90, 1.0, 0.0, 0.0);
-			glScaled(0.98, 0.48, 0.08);
-			glTranslatef(-1.5, 9.0, -36);
-			glColorMaterial(GL_FRONT_AND_BACK, GL_AMBIENT_AND_DIFFUSE);
-			glColor3f(0.0980, 0.0608, 0.0077);
-			glutSolidCube(1.0);
-			glPopMatrix();
-			// kaki meja kiri belakang
-			glPushMatrix();
-			glScaled(0.06, 0.5,0.06);
-			glTranslatef(-30, 5.2, 75.5);
-			glColorMaterial(GL_FRONT_AND_BACK, GL_AMBIENT_AND_DIFFUSE);
-			glutSolidCube(1.0);
-			glPopMatrix();
-			// kaki meja kiri depan
-			glPushMatrix();
-			glScaled(0.06, 0.5,0.06);
-			glTranslatef(-20, 5.2, 75.5);
-			glColorMaterial(GL_FRONT_AND_BACK, GL_AMBIENT_AND_DIFFUSE);
-			glutSolidCube(1.0);
-			glPopMatrix();
-			// kaki meja kanan depan
-			glPushMatrix();
-			glScaled(0.06, 0.5,0.06);
-			glTranslatef(-20, 5.2, 68.5);
-			glColorMaterial(GL_FRONT_AND_BACK, GL_AMBIENT_AND_DIFFUSE);
-			glutSolidCube(1.0);
-			glPopMatrix();
-			// kaki meja kanan belakang
-			glPushMatrix();
-			glScaled(0.06, 0.5,0.06);
-			glTranslatef(-30, 5.2, 68.5);
-			glColorMaterial(GL_FRONT_AND_BACK, GL_AMBIENT_AND_DIFFUSE);
-			glutSolidCube(1.0);
-			glPopMatrix();
-
-		// MEJA KIRI
-			// tatakan meja
-			glPushMatrix();
-			glRotated(90, 1.0, 0.0, 0.0);
-			glScaled(0.98, 0.48, 0.08);
-			glTranslatef(-1.50, 2.5, -36);
-			glColorMaterial(GL_FRONT_AND_BACK, GL_AMBIENT_AND_DIFFUSE);
-			glColor3f(0.0980, 0.0608, 0.0077);
-			glutSolidCube(1.0);
-			glPopMatrix();
-			// kaki meja kiri belakang
-			glPushMatrix();
-			glScaled(0.06, 0.5,0.06);
-			glTranslatef(-30, 5.2, 23);
-			glColorMaterial(GL_FRONT_AND_BACK, GL_AMBIENT_AND_DIFFUSE);
-			glutSolidCube(1.0);
-			glPopMatrix();
-			// kaki meja kiri depan
-			glPushMatrix();
-			glScaled(0.06, 0.5,0.06);
-			glTranslatef(-20, 5.2, 23);
-			glColorMaterial(GL_FRONT_AND_BACK, GL_AMBIENT_AND_DIFFUSE);
-			glutSolidCube(1.0);
-			glPopMatrix();
-			// kaki meja kanan depan
-			glPushMatrix();
-			glScaled(0.06, 0.5,0.06);
-			glTranslatef(-20, 5.2, 16.8);
-			glColorMaterial(GL_FRONT_AND_BACK, GL_AMBIENT_AND_DIFFUSE);
-			glutSolidCube(1.0);
-			glPopMatrix();
-			// kaki meja kanan belakang
-			glPushMatrix();
-			glScaled(0.06, 0.5,0.06);
-			glTranslatef(-30, 5.2, 16.8);
-			glColorMaterial(GL_FRONT_AND_BACK, GL_AMBIENT_AND_DIFFUSE);
-			glutSolidCube(1.0);
-			glPopMatrix();
-
-			//	LEMARI
-				glPushMatrix();
-				glRotated(-90, 0.0, 1.0, 0.0);
-				glScaled(0.18, 0.35, 0.16);
-				glTranslatef(-12, 9.5, 13);
-				glColorMaterial(GL_FRONT_AND_BACK, GL_AMBIENT_AND_DIFFUSE);
-				glColor3f(255,255,255);
-				glutSolidCube(5.0);
-				glPopMatrix();
-
-//	LAMPU ATAS KANAN
+		
+  	//LAMPU ATAS KANAN
 	glPushMatrix();
 	glScaled(0.05, 0.05, 0.05);
 	glTranslatef(34.5, 95.4, 10);
@@ -711,7 +243,7 @@ void bangunan(void) {
 	glPopMatrix();
 	
 
-//  LAMPU ATAS KIRI    
+	//LAMPU ATAS KIRI    
 	glPushMatrix();
 	glScaled(0.05, 0.05, 0.05);
 	glTranslatef(-32.5, 95.4, 10);
@@ -720,7 +252,7 @@ void bangunan(void) {
 	glutSolidSphere(2.0,20,50);
 	glPopMatrix();
 
-//	LAMPU BAWAH KANAN
+	//LAMPU BAWAH KANAN
 	glPushMatrix();
 	glScaled(0.05, 0.05, 0.05);
 	glTranslatef(34.5, 47, 10);
@@ -728,8 +260,8 @@ void bangunan(void) {
 	glColor3ub(255, 255, 000);
 	glutSolidSphere(2.0,20,50);
 	glPopMatrix();
-
-//  LAMPU BAWAH KIRI
+	
+	//LAMPU BAWAH KIRI
 	glPushMatrix();
 	glScaled(0.05, 0.05, 0.05);
 	glTranslatef(-32.5, 47, 10);
@@ -737,79 +269,443 @@ void bangunan(void) {
 	glColor3ub(255, 255, 000);
 	glutSolidSphere(2.0,20,50);
 	glPopMatrix();
-
+	void mejakasur(void);
+	
 }
 
-void mejaMakan(void){
-	// lingkaran meja
+void tempatTidur(){
+     glPushMatrix();
+       glTranslatef(-15.0,-8.5,-12.0);
+       glScalef(6.0,1.0,9.0);
+       glColor3f(0.0980, 0.0608, 0.0077);
+       glutSolidCube(1.5);
+    glPopMatrix();
+    glColorMaterial(GL_FRONT_AND_BACK, GL_AMBIENT_AND_DIFFUSE);
+    glPushMatrix();
+       glTranslatef(-15.0,-8.5,-12.0);
+       glColor3ub (255, 250, 250);
+       glScalef(6.0,2.0,10.0);
+       glutSolidCube(1.3);
+    glPopMatrix();
+    // bantal kiri
+    glPushMatrix();
+    	glRotated(-90, 0.0, 1.0, 0.0);
+    	glScaled(0.4, 0.1, 0.6);
+    	glTranslatef(-43, -70, 28);
+    	glColor3ub (255, 250, 250);
+    	glutSolidCube(5.0);
+    glPopMatrix();
+    // bantal kanan
+    glPushMatrix();
+    	glRotated(-90, 0.0, 1.0, 0.0);
+    	glScaled(0.4, 0.1, 0.6);
+    	glTranslatef(-43, -70, 22);
+    	glColor3ub (255, 250, 250);
+    	glutSolidCube(5.0);
+    glPopMatrix();//
+}
+
+void mejakasur(void){
+
+// MEJA Kanan
+	// tatakan meja
 	glPushMatrix();
-	glColor3ub(46, 79, 219);
-	glTranslatef(0, 1.5, -1);
-	glScaled(1, 0.1, 1);
-	glutSolidSphere(6, 25, 25);
+	glRotated(90, 1.0, 0.0, 0.0);
+	glScaled(0.98, 0.48, 0.08);
+	glTranslatef(-1.5, 9.0, -36);
+	glColorMaterial(GL_FRONT_AND_BACK, GL_AMBIENT_AND_DIFFUSE);
+	glColor3f(0.0980, 0.0608, 0.0077);
+	glutSolidCube(1.0);
+	glPopMatrix();	
+	// kaki meja kiri belakang
+	glPushMatrix();
+	glScaled(0.06, 0.5,0.06);
+	glTranslatef(-30, 5.2, 75.5);
+	glColorMaterial(GL_FRONT_AND_BACK, GL_AMBIENT_AND_DIFFUSE);
+	glutSolidCube(1.0);
 	glPopMatrix();
 	// kaki meja kiri depan
 	glPushMatrix();
-	glScaled(0.1, 0.6, 0.1);
-	glTranslatef(33, 0, 30);
-	glColor3ub(46, 79, 219);
-	glutSolidCube(5.0);
-	glPopMatrix();
-	// kaki meja kiri belakang
-	glPushMatrix();
-	glScaled(0.1, 0.6, 0.1);
-	glTranslatef(-33, 0, 30);
-	glColor3ub(46, 79, 219);
-	glutSolidCube(5.0);
+	glScaled(0.06, 0.5,0.06);
+	glTranslatef(-20, 5.2, 75.5);
+	glColorMaterial(GL_FRONT_AND_BACK, GL_AMBIENT_AND_DIFFUSE);
+	glutSolidCube(1.0);
 	glPopMatrix();
 	// kaki meja kanan depan
 	glPushMatrix();
-	glScaled(0.1, 0.6, 0.1);
-	glTranslatef(33, 0, -50);
-	glColor3ub(46, 79, 219);
-	glutSolidCube(5.0);
+	glScaled(0.06, 0.5,0.06);
+	glTranslatef(-20, 5.2, 68.5);
+	glColorMaterial(GL_FRONT_AND_BACK, GL_AMBIENT_AND_DIFFUSE);
+	glutSolidCube(1.0);
 	glPopMatrix();
 	// kaki meja kanan belakang
 	glPushMatrix();
-	glScaled(0.1, 0.6, 0.1);
-	glTranslatef(-33, 0, -50);
-	glColor3ub(46, 79, 219);
-	glutSolidCube(5.0);
+	glScaled(0.06, 0.5,0.06);
+	glTranslatef(-30, 5.2, 68.5);
+	glColorMaterial(GL_FRONT_AND_BACK, GL_AMBIENT_AND_DIFFUSE);
+	glutSolidCube(1.0);
 	glPopMatrix();
+	
+	// MEJA KIRI
+	// tatakan meja
+	glPushMatrix();
+	glRotated(90, 1.0, 0.0, 0.0);
+	glScaled(0.98, 0.48, 0.08);
+	glTranslatef(-1.50, 2.5, -36);
+	glColorMaterial(GL_FRONT_AND_BACK, GL_AMBIENT_AND_DIFFUSE);
+	glColor3f(0.0980, 0.0608, 0.0077);
+	glutSolidCube(1.0);
+	glPopMatrix();
+	// kaki meja kiri belakang
+	glPushMatrix();
+	glScaled(0.06, 0.5,0.06);
+	glTranslatef(-30, 5.2, 23);
+	glColorMaterial(GL_FRONT_AND_BACK, GL_AMBIENT_AND_DIFFUSE);
+	glutSolidCube(1.0);
+	glPopMatrix();
+	// kaki meja kiri depan
+	glPushMatrix();
+	glScaled(0.06, 0.5,0.06);
+	glTranslatef(-20, 5.2, 23);
+	glColorMaterial(GL_FRONT_AND_BACK, GL_AMBIENT_AND_DIFFUSE);
+	glutSolidCube(1.0);
+	glPopMatrix();
+	// kaki meja kanan depan
+	glPushMatrix();
+	glScaled(0.06, 0.5,0.06);
+	glTranslatef(-20, 5.2, 16.8);
+	glColorMaterial(GL_FRONT_AND_BACK, GL_AMBIENT_AND_DIFFUSE);
+	glutSolidCube(1.0);
+	glPopMatrix();
+	// kaki meja kanan belakang
+	glPushMatrix();
+	glScaled(0.06, 0.5,0.06);
+	glTranslatef(-30, 5.2, 16.8);
+	glColorMaterial(GL_FRONT_AND_BACK, GL_AMBIENT_AND_DIFFUSE);
+	glutSolidCube(1.0);
+	glPopMatrix();
+
+}
+void mejasofa(void){
+    glPushMatrix();
+       glTranslatef(0.0,-5.0,0.0);
+       glColor3f(0.0980, 0.0608, 0.0077);
+       glScalef(6.0,0.1,8.0);
+       glutSolidCube(1.0);
+    glPopMatrix();
+
+    glPushMatrix();
+       glTranslatef(-2.5,-7.0,3.5);
+       glScalef(1.0,4.0,1.0);
+       glutSolidCube(1.0);
+    glPopMatrix();
+
+    glPushMatrix();
+       glTranslatef(2.5,-7.0,3.5);
+       glScalef(1.0,4.0,1.0);
+       glutSolidCube(1.0);
+    glPopMatrix();
+
+    glPushMatrix();
+       glTranslatef(-2.5,-7.0,-3.5);
+       glScalef(1.0,4.0,1.0);
+       glutSolidCube(1.0);
+    glPopMatrix();
+
+    glPushMatrix();
+       glTranslatef(2.5,-7.0,-3.5);
+       glScalef(1.0,4.0,1.0);
+       glutSolidCube(1.0);
+    glPopMatrix();
+}
+
+
+
+void sofaPanjang(){
+	// bawah sofa
+	glRotated(-90, 0.0, 1.0, 0.0);
+	glPushMatrix();
+		glScaled(1.5, 0.5, 5);
+		glTranslatef(1, -17, 0);
+		glColor3f(0.0980, 0.0608, 0.0077);
+	    glutSolidCube(5.0);
+    glPopMatrix();
+    // senderan sofa
+	glRotated(-90, 0.0, 1.0, 0.0);
+	glPushMatrix();
+		glScaled(5, 1.5, 0.5);
+		glTranslatef(0, -4, -11);
+	    glColor3ub(255, 250, 250);
+	    glutSolidCube(5.0);
+    glPopMatrix();
+    // sisi kanan sofa
+	glRotated(-90, 0.0, 1.0, 0.0);
+	glPushMatrix();
+		glScaled(2, 1, 0.5);
+		glTranslatef(-0.8, -7, 25);
+		glColor3f(0.0980, 0.0608, 0.0077);
+	    glutSolidCube(5.0);
+    glPopMatrix();
+    //sisi kiri sofa
+    glPushMatrix();
+		glScaled(2, 1, 0.5);
+		glTranslatef(-0.8, -7, -25);
+		glColor3f(0.0980, 0.0608, 0.0077);
+	    glutSolidCube(5.0);
+    glPopMatrix();
+     // bantal sofa
+	glPushMatrix();
+		glScaled(1, 0.1, 4);
+		glTranslatef(-1, -70, 0);
+	    glColor3ub(255, 250, 250);
+	    glutSolidCube(5.0);
+    glPopMatrix();
+    
+}
+
+void pintuUtama(){
+    // Menggambar daun pintu utama
+    glPushMatrix();
+        glScaled(3, 5, 0.8); 
+        glTranslatef(3, 2.5, 76); 
+        glColor3ub(255, 250, 250);
+        glutSolidCube(5.0); 
+        glPushMatrix();
+            glTranslatef(-5.055, 0, 0); 
+            glColor3ub(255, 250, 250); 
+            glutSolidCube(5.0); // Menggambar kubus tambahan
+        glPopMatrix();
+    glPopMatrix();
+
+    // Menggambar bingkai pintu bagian kiri
+    glPushMatrix();
+        glScaled(0.2, 0.7, 1); 
+        glTranslatef(0, 20, 60.88); 
+        glColor3ub(0, 0, 0); 
+        glutSolidCube(5.0); 
+    glPopMatrix();
+
+    // Menggambar bingkai pintu bagian kanan
+    glPushMatrix();
+        glScaled(0.2, 0.7, 1); 
+        glTranslatef(15, 20, 60.88); 
+        glColor3ub(0, 0, 0); 
+        glutSolidCube(5.0);
+    glPopMatrix();
+}
+
+void tangga(){
+    glRotated(-90, 0.0, 1.0, 0.0); 
+    glPushMatrix();
+        glScaled(0.7, 0.5, 2.5);
+        glTranslatef(-30, 5, 12);
+        glColor3ub(138, 138, 138); 
+        glutSolidCube(5.0);
+    glPopMatrix();
+    glPushMatrix();
+        glScaled(0.7, 1.0, 2.5);
+        glTranslatef(-35, 3.8, 12);
+        glutSolidCube(5.0);
+    glPopMatrix();
+    glPushMatrix();
+        glScaled(0.7, 1.5, 2.5);
+        glTranslatef(-40, 3.5, 12);
+        glutSolidCube(5.0);
+    glPopMatrix();
+    glPushMatrix();
+        glScaled(0.7, 2, 2.5);
+        glTranslatef(-45, 3.2, 12);
+        glutSolidCube(5.0);
+    glPopMatrix();
+    glPushMatrix();
+        glScaled(0.7, 2.5, 2.5);
+        glTranslatef(-50, 3, 12);
+        glutSolidCube(5.0);
+    glPopMatrix();
+    glPushMatrix();
+        glScaled(0.7, 3, 2.5);
+        glTranslatef(-55, 2.8, 12);
+        glutSolidCube(5.0);
+    glPopMatrix();
+    glPushMatrix();
+        glScaled(2, 3.5, 2.5);
+        glTranslatef(-22.5, 2.7, 12);
+        glutSolidCube(5.0);
+    glPopMatrix();
+    glPushMatrix();
+        glRotated(-90, 0.0, 1.0, 0.0);
+        glScaled(0.7, 4, 2.5);
+        glTranslatef(31, 2.6, 19.5);
+        glutSolidCube(5.0);
+    glPopMatrix();
+    glPushMatrix();
+        glRotated(-90, 0.0, 1.0, 0.0);
+        glScaled(0.7, 4.5, 2.5);
+        glTranslatef(27, 2.4, 19.5);
+        glutSolidCube(5.0);
+    glPopMatrix();
+    glPushMatrix();
+        glRotated(-90, 0.0, 1.0, 0.0);
+        glScaled(0.7, 5, 2.5);
+        glTranslatef(23, 2.4, 19.5);
+        glutSolidCube(5.0);
+    glPopMatrix();
+    glPushMatrix();
+        glRotated(-90, 0.0, 1.0, 0.0);
+        glScaled(0.7, 5.5, 2.5);
+        glTranslatef(19, 2.4, 19.5);
+        glutSolidCube(5.0);
+    glPopMatrix();
+    glPushMatrix();
+        glRotated(-90, 0.0, 1.0, 0.0);
+        glScaled(0.7, 6, 2.5);
+        glTranslatef(15, 2.4, 19.5);
+        glutSolidCube(5.0);
+    glPopMatrix();
+    glPushMatrix();
+        glRotated(-90, 0.0, 1.0, 0.0);
+        glScaled(0.7, 6.5, 2.5);
+        glTranslatef(11, 2.4, 19.5);
+        glutSolidCube(5.0);
+    glPopMatrix();
+    glPushMatrix();
+        glRotated(-90, 0.0, 1.0, 0.0);
+        glScaled(0.7, 7, 2.5);
+        glTranslatef(7, 2.4, 19.5);
+        glutSolidCube(5.0);
+    glPopMatrix();
+    glPushMatrix();
+        glRotated(-90, 0.0, 1.0, 0.0);
+        glScaled(0.7, 7.5, 2.5);
+        glTranslatef(3, 2.4, 19.5);
+        glutSolidCube(5.0);
+    glPopMatrix();
+}
+
+void lampuMeja() {
+    // Menggambar kap lampu
+    glPushMatrix();
+        glColorMaterial(GL_FRONT_AND_BACK, GL_AMBIENT_AND_DIFFUSE); 
+        glColor3ub(255, 255, 0);
+        glRotated(-90.0, 1.0, 0.0, 0.0); 
+        glutSolidCone(15.0, 20.0, 15, 15); 
+    glPopMatrix();
+
+    // Menggambar bagian tengah lampu
+    glPushMatrix();
+        glRotatef(90, 1, 0, 0); 
+        glTranslatef(0.0, 0, -2); 
+        glScalef(1.4, 2, 30);
+        glColor3ub(255, 250, 250); 
+        glutSolidTorus(0.4, 0.4, 60, 80); 
+    glPopMatrix();
+
+    // Menggambar dasar lampu
+    glPushMatrix();
+        glColor3ub(255, 250, 250); 
+        glTranslatef(0, -9.1, -0.05); 
+        glScalef(2, 0.1, 2); 
+        glutSolidSphere(6, 25, 25); 
+    glPopMatrix();
+}
+
+
+void lemari(void){
+     //isi atau inti lemari
+    glColor3d(0.88,0.72,0.53);
+    glPushMatrix();
+        glTranslated(-31.0,43.0,8.0);
+        glScaled(1.5,2.5,6.0);
+        glutSolidCube(10);
+    glPopMatrix();
+
+    //pintu atau kerangka lemari
+    glColor3d(0.75,0.59,0.4);
+    glPushMatrix();
+        glTranslated(-30.0,43.0,20.0);
+        glScaled(1.5,2.0,2.0);
+        glutSolidCube(10);
+    glPopMatrix();
+	
+	glColor3d(0.75,0.59,0.4);
+    glPushMatrix();
+        glTranslated(-30.0,43.0,-5.0);
+        glScaled(1.5,2.0,2.0);
+        glutSolidCube(10);
+    glPopMatrix();
+    
+}
+	
+void mejaMakan(void){
+		// lingkaran meja
+		glPushMatrix();
+		glColor3ub(139,69,19);
+		glTranslatef(0, 1.5, -1);
+		glScaled(1, 0.1, 1);
+		glutSolidSphere(6, 25, 25);
+		glPopMatrix();
+		// kaki meja kiri depan
+		glPushMatrix();
+		glScaled(0.1, 0.6, 0.1);
+		glTranslatef(33, 0, 30);
+		glColor3ub(139,69,19);
+		glutSolidCube(5.0);
+		glPopMatrix();
+		// kaki meja kiri belakang
+		glPushMatrix();
+		glScaled(0.1, 0.6, 0.1);
+		glTranslatef(-33, 0, 30);
+		glColor3ub(139,69,19);
+		glutSolidCube(5.0);
+		glPopMatrix();
+		// kaki meja kanan depan
+		glPushMatrix();
+		glScaled(0.1, 0.6, 0.1);
+		glTranslatef(33, 0, -50);
+		glColor3ub(139,69,19);
+		glutSolidCube(5.0);
+		glPopMatrix();
+		// kaki meja kanan belakang
+		glPushMatrix();
+		glScaled(0.1, 0.6, 0.1);
+		glTranslatef(-33, 0, -50);
+		glColor3ub(139,69,19);
+		glutSolidCube(5.0);
+		glPopMatrix();
 }
 
 void kursiMakan(void)
 {
-	 glPushMatrix();
-		glColor3ub(46, 79, 219);
-		glTranslatef(-5, -9.1, -0.05);
-		glScaled(0.2, 0.05, 0.2);
-		glutSolidSphere(6, 25, 25);
-	 glPopMatrix();
+    // Menggambar kaki kursi
+    glPushMatrix(); 
+        glColor3ub(139,69,19); 
+        glTranslatef(-5, -9.1, -0.05); 
+        glScaled(0.2, 0.05, 0.2); 
+        glutSolidSphere(6, 25, 25); 
+    glPopMatrix(); 
 
-     glPushMatrix();
-        glTranslatef(-5.0,-7.0,0);
-        glScalef(3.0,0.1,3.0);
-        glutSolidCube(1.0);
-     glPopMatrix();
+    // Menggambar tempat duduk kursi
+    glPushMatrix(); 
+        glTranslatef(-5.0, -7.0, 0); 
+        glScalef(3.0, 0.1, 3.0); 
+        glutSolidCube(1.0); 
+    glPopMatrix(); 
 
-     glPushMatrix();
-        glTranslatef(-6.5,-5.5,0);
-        glRotatef(90,0.0,0.0,1.0);
-        glScalef(3.0,0.1,3.0);
+    // Menggambar sandaran kursi
+    glPushMatrix(); 
+        glTranslatef(-6.5, -5.5, 0); 
+        glRotatef(90, 0.0, 0.0, 1.0); 
+        glScalef(3.0, 0.1, 3.0); 
         glutSolidCube(1.0);
-     glPopMatrix();
+    glPopMatrix();
 
-     glPushMatrix();
-        glTranslatef(-5.0,-8.0,0);
-        glScalef(0.5,2.0,0.5);
-        glutSolidCube(1.0);
-     glPopMatrix();
+    // Menggambar penopang kursi
+    glPushMatrix(); 
+        glTranslatef(-5.0, -8.0, 0); 
+        glScalef(0.5, 2.0, 0.5); 
+        glutSolidCube(1.0); 
+    glPopMatrix();
 }
-
-
-
-unsigned int LoadTextureFromBmpFile(char *filename);
 
 void display(void) {
 	glClearStencil(0); //clear the stencil buffer
@@ -823,6 +719,7 @@ void display(void) {
 			glTranslatef(0,0,0);
 			glScalef(15, 15, 15);
 			bangunan(); //Bangunan
+			mejakasur();
 		glPopMatrix();
 
 		glPushMatrix();
@@ -833,11 +730,6 @@ void display(void) {
 		glPushMatrix();
 			glTranslatef(0,0,-5);
 			tangga();// Tangga lantai 1 dan 2
-		glPopMatrix();
-
-		glPushMatrix();
-		    glTranslatef(0, 0.5, -20);
-		    kursi();// Kursi
 		glPopMatrix();
 
 		glPushMatrix();
@@ -882,7 +774,7 @@ void display(void) {
 			glRotatef(90, 0, 1, 0);
 			glTranslatef(-22.5, 15, 5);
 			glScalef(1.5, 1.5, 1.5);
-			meja();// Meja ruang tamu
+			mejasofa();// Meja ruang tamu
 		glPopMatrix();
 
 		glPushMatrix();
@@ -908,12 +800,18 @@ void display(void) {
 				sofaPanjang();
 			glPopMatrix();
 
+			//lemari 
 			glPushMatrix();
 				glRotatef(-90, 0, 1, 0);
 				glTranslatef(-70, 30, 12);
-				sofaPanjang();
 			glPopMatrix();
 		glPopMatrix();
+		
+		glPushMatrix();
+        	glRotated(-90, 0.0, 1.0, 0.0);
+			glScaled(0.5, 1.2, 1);
+        	lemari();
+        glPopMatrix();
 
 		glPushMatrix();
 			//lampu kiri
@@ -926,9 +824,6 @@ void display(void) {
 			lampuMeja();// Lampu ruang tidur
 			glPopMatrix();
 		glPopMatrix();
-
-		
-
 	    
 	glPushMatrix();
 	glPopMatrix();
@@ -939,61 +834,6 @@ void display(void) {
 
 }
 
-void init(void) {
-	glEnable(GL_DEPTH_TEST);
-	glEnable(GL_LIGHTING);
-	glEnable(GL_LIGHT0);
-	glDepthFunc(GL_LESS);
-	glEnable(GL_NORMALIZE);
-	glEnable(GL_COLOR_MATERIAL);
-	glDepthFunc(GL_LEQUAL);
-	glShadeModel(GL_SMOOTH);
-	glHint(GL_PERSPECTIVE_CORRECTION_HINT, GL_NICEST);//Fungsi set up perspektif matriks proyeksi.
-	glEnable(GL_CULL_FACE);
-
-}
-
-static void navigasi(int key, int x, int y) {
-	switch (key) {
-	case GLUT_KEY_HOME:
-		camy++;
-		break;
-	case GLUT_KEY_END:
-		camy--;
-		break;
-	case GLUT_KEY_UP:
-		camz--;
-		break;
-	case GLUT_KEY_DOWN:
-		camz++;
-		break;
-	case GLUT_KEY_RIGHT:
-		camx++;
-		break;
-	case GLUT_KEY_LEFT:
-		camx--;
-		break;
-
-	case GLUT_KEY_F1: {
-		glLightfv(GL_LIGHT0, GL_AMBIENT, light_ambient);//Yaitu menyebabkan warna sekitar/ pantulan yang telah banyak.
-		glLightfv(GL_LIGHT0, GL_DIFFUSE, light_diffuse);//Yaitu cahaya yang diterima oleh material akan menyebar kesegala arah.
-		glMaterialfv(GL_FRONT, GL_AMBIENT, mat_ambient);
-		glMaterialfv(GL_FRONT, GL_DIFFUSE, mat_diffuse);
-	}
-		;
-		break;
-	case GLUT_KEY_F2: {
-		glLightfv(GL_LIGHT0, GL_AMBIENT, light_ambient2);
-		glLightfv(GL_LIGHT0, GL_DIFFUSE, light_diffuse2);
-		glMaterialfv(GL_FRONT, GL_AMBIENT, mat_ambient);
-		glMaterialfv(GL_FRONT, GL_DIFFUSE, mat_diffuse);
-	}
-		;
-		break;
-	default:
-		break;
-	}
-}
 
 void keyboard(unsigned char key, int x, int y) {
     if (key == 'd') {
@@ -1014,12 +854,7 @@ void keyboard(unsigned char key, int x, int y) {
     if (key == 'd') { // kanan
         camz--;
     }
-    if (key == 'q') { // atas
-        camy++;
-    }
-    if (key == 'e') { // bawah
-        camy--;
-    }
+    
     if (key == 'w') { // maju
         camx--;
     }
@@ -1028,7 +863,7 @@ void keyboard(unsigned char key, int x, int y) {
     }
 }
 
-// Fungsi untuk menangani scroll mouse
+
 void mouseWheel(int button, int dir, int x, int y) {
     if (dir > 0) { // Scroll ke atas
         camy++;
@@ -1055,11 +890,9 @@ int main(int argc, char **argv) {
 	glutInitWindowPosition(100, 100);
 	glutCreateWindow("Rumah Sederhana");
 	init();
-
 	glutDisplayFunc(display);
 	glutIdleFunc(display);
-	glutReshapeFunc(reshape);
-	glutSpecialFunc(navigasi);
+	glutReshapeFunc(reshape);	
 	glutKeyboardFunc(keyboard);
 	glutMouseWheelFunc(mouseWheel);
 	glLightfv(GL_LIGHT0, GL_SPECULAR, light_specular);//mengatur cahaya kilau pada objek
